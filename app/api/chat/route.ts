@@ -1,28 +1,25 @@
 import { google } from '@ai-sdk/google';
-import { streamText, convertToModelMessages, tool, UIMessage } from 'ai';
+import { streamText, convertToModelMessages, tool, UIMessage, stepCountIs } from 'ai'; // 1. Added stepCountIs import
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
-// Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
 
-// Initialize the free database connection
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function POST(req: Request) {
-  // Parse and type the incoming messages array from the frontend hook
+  // Safe Client Initialization: Evaluates only when an active request hits the live endpoint
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
     model: google('gemini-2.5-flash'),
     messages: await convertToModelMessages(messages),
     
-    // Enable the multi-step agent feedback loop
-    // This allows Gemini to execute a tool AND continue generating a text response afterwards!
-    maxSteps: 5, 
+    // 🔥 FIX: Replaced maxSteps: 5 with the modern, type-safe stopping condition
+    stopWhen: stepCountIs(5), 
 
     system: `You are the autonomous AI assistant for Boston Balloon Factory. 
     Tone: Friendly, brief, and highly execution-focused.
@@ -47,7 +44,6 @@ export async function POST(req: Request) {
         execute: async ({ name, phone, details }) => {
           console.log(`🤖 AI triggered tool use execution for: ${name}`);
           
-          // Insert data row directly into Supabase
           const { error } = await supabase
             .from('sandbox_leads')
             .insert([{ customer_name: name, customer_phone: phone, event_details: details }]);
@@ -63,11 +59,9 @@ export async function POST(req: Request) {
     },
   });
 
-  // Return the explicit UI stream response token
   return result.toUIMessageStreamResponse();
 }
 
-// Baseline verification route for health checks
 export async function GET() {
   return Response.json({ 
     status: "The Factory Engine is Alive!",
