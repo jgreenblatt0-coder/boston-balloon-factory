@@ -40,44 +40,39 @@ export default function Home() {
           </div>
         )}
 
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex flex-col ${
-              message.role === 'user' ? 'items-end' : 'items-start'
-            }`}
-          >
-            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1 px-1">
-              {message.role === 'user' ? 'Customer' : 'AI Assistant'}
-            </span>
+        {messages.map((message) => {
+          // Check if this message ONLY contains tool calls (and no conversational text yet)
+          const hasText = message.parts?.some(part => part.type === 'text');
+          if (message.role === 'assistant' && !hasText) return null;
+
+          return (
             <div
-              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm whitespace-pre-wrap ${
-                message.role === 'user'
-                  ? 'bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900 rounded-tr-none'
-                  : 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50 rounded-tl-none border border-zinc-200/50 dark:border-zinc-700/50'
+              key={message.id}
+              className={`flex flex-col ${
+                message.role === 'user' ? 'items-end' : 'items-start'
               }`}
             >
-              {/* Fallback string parser if parts array transitions between cycles */}
-              {message.content && <span className="block">{message.content}</span>}
-
-              {/* Parts-based array processor mapping conversational strings & background tools */}
-              {message.parts?.map((part, index) => {
-                if (part.type === 'text') {
-                  return <span key={index}>{part.text}</span>;
-                }
-                
-                if (part.type.includes('tool')) {
-                  return (
-                    <div key={index} className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-mono font-bold bg-emerald-50 dark:bg-emerald-950/50 px-2 py-1 rounded-md mt-1 border border-emerald-200/30">
-                      <span>⚙️ SYSTEM: Securely logged lead to database</span>
-                    </div>
-                  );
-                }
-                return null;
-              })}
+              <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1 px-1">
+                {message.role === 'user' ? 'Customer' : 'AI Assistant'}
+              </span>
+              <div
+                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm whitespace-pre-wrap ${
+                  message.role === 'user'
+                    ? 'bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900 rounded-tr-none'
+                    : 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50 rounded-tl-none border border-zinc-200/50 dark:border-zinc-700/50'
+                }`}
+              >
+                {/* Parts-based array processor mapping conversational strings natively */}
+                {message.parts?.map((part, index) => {
+                  if (part.type === 'text') {
+                    return <span key={index}>{part.text}</span>;
+                  }
+                  return null;
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Loading Indicator */}
         {status === 'streaming' && (
